@@ -425,32 +425,39 @@ static inline uint64_t readU64LE(const uint8_t *p) {
     return (uint64_t)readU32LE(p) | ((uint64_t)readU32LE(p + 4) << 32);
 }
 
-// Populate directory hierarchies (e.g. Graphics/Characters/trainer.png)
+// Populate directory hierarchies for every ancestor of `path`.
+// For example, "Audio/BGM/test.ogg" adds:
+//   dirMap[""]       <- "Audio"
+//   dirMap["Audio"]  <- "BGM"
+//   dirMap["Audio/BGM"] <- "test.ogg"
 static void indexDirectories(VoidArchive *archive, const std::string &path) {
-    std::string currentDir = "";
-    size_t lastSlash = 0;
+    // Walk each path component and ensure each parent directory
+    // knows about its child (be it a sub-directory or a file).
+    size_t start = 0;
+    while (start <= path.size()) {
+        size_t slash = path.find('/', start);
+        // Component is path[start..slash-1] (or end if no slash)
+        std::string parentDir = (start == 0) ? "" : path.substr(0, start - 1);
+        std::string childName;
 
-    while ((lastSlash = path.find('/', lastSlash)) != std::string::npos) {
-        std::string parentDir = path.substr(0, lastSlash);
-        std::string subItem = path.substr(0, path.find('/', lastSlash + 1));
-        
-        std::string nameOnly = subItem.substr(lastSlash + 1);
-        if (!nameOnly.empty()) {
+        if (slash == std::string::npos) {
+            // Final component — the filename itself
+            childName = path.substr(start);
+            if (childName.empty()) break;
             auto &dirList = archive->dirMap[parentDir];
-            if (std::find(dirList.begin(), dirList.end(), nameOnly) == dirList.end()) {
-                dirList.push_back(nameOnly);
+            if (std::find(dirList.begin(), dirList.end(), childName) == dirList.end())
+                dirList.push_back(childName);
+            break;
+        } else {
+            // Intermediate component — a directory name
+            childName = path.substr(start, slash - start);
+            if (!childName.empty()) {
+                auto &dirList = archive->dirMap[parentDir];
+                if (std::find(dirList.begin(), dirList.end(), childName) == dirList.end())
+                    dirList.push_back(childName);
             }
+            start = slash + 1;
         }
-        lastSlash++;
-    }
-
-    size_t finalSlash = path.rfind('/');
-    std::string fileDir = (finalSlash == std::string::npos) ? "" : path.substr(0, finalSlash);
-    std::string fileName = (finalSlash == std::string::npos) ? path : path.substr(finalSlash + 1);
-
-    auto &dirList = archive->dirMap[fileDir];
-    if (std::find(dirList.begin(), dirList.end(), fileName) == dirList.end()) {
-        dirList.push_back(fileName);
     }
 }
 
