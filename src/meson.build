@@ -132,6 +132,7 @@ main_source = files(
     'theoraplay/theoraplay.c',
 
     'crypto/rgssad.cpp',
+    'crypto/voidpak.cpp',
 
     'display/autotiles.cpp',
     'display/autotilesvx.cpp',

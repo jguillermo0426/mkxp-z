@@ -139,6 +139,14 @@ struct SharedStatePrivate
 			fclose(tmp);
 		}
 
+		/* Check if Game.pak exists */
+		FILE *pakTmp = fopen("Game.pak", "rb");
+		if (pakTmp)
+		{
+			fileSystem.addPath("Game.pak");
+			fclose(pakTmp);
+		}
+
 		fileSystem.addPath(".");
 
 		for (size_t i = 0; i < config.rtps.size(); ++i)

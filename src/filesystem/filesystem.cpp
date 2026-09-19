@@ -27,6 +27,7 @@
 #include "util/util.h"
 #include "display/font.h"
 #include "crypto/rgssad.h"
+#include "crypto/voidpak.h"
 
 #include "eventthread.h"
 #include "sharedstate.h"
@@ -305,6 +306,7 @@ FileSystem::FileSystem(const char *argv0, bool allowSymlinks) {
   er *= PHYSFS_registerArchiver(&RGSS1_Archiver);
   er *= PHYSFS_registerArchiver(&RGSS2_Archiver);
   er *= PHYSFS_registerArchiver(&RGSS3_Archiver);
+  er *= PHYSFS_registerArchiver(&VOIDPAK_Archiver);
 
   if (er == 0)
     throwPhysfsError("Error registering PhysFS RGSS archiver");
