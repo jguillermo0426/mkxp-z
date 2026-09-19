@@ -167,7 +167,7 @@ static void hmac_sha256(const uint8_t *key, size_t key_len,
 }
 
 // ============================================================================
-// ChaCha20 Stream Cipher Implementation (RFC 8439) with Seeking Support
+// ChaCha20 Stream Cipher Implementation (Matching Python Cryptography 16-Byte Nonce)
 // ============================================================================
 
 #define ROTL32(v, n) (((v) << (n)) | ((v) >> (32 - (n))))
@@ -223,12 +223,13 @@ static void chacha20_crypt_stream(const uint8_t key[32], const uint8_t nonce[16]
         state[4 + i] = load32_le(key + i * 4);
     }
 
-    // Base counter and nonce (nonce is 16 bytes: 4 words)
+    // Python cryptography library ChaCha20 layout:
+    // 64-bit initial counter in state[12..13] initialized to nonce[0..7]
+    // 64-bit nonce in state[14..15] initialized to nonce[8..15]
+    uint64_t base_counter = (uint64_t)load32_le(nonce + 0) | ((uint64_t)load32_le(nonce + 4) << 32);
     uint64_t block_counter = byte_offset / 64;
     size_t block_offset = (size_t)(byte_offset % 64);
 
-    state[12] = (uint32_t)(block_counter);
-    state[13] = load32_le(nonce + 4);
     state[14] = load32_le(nonce + 8);
     state[15] = load32_le(nonce + 12);
 
@@ -236,7 +237,9 @@ static void chacha20_crypt_stream(const uint8_t key[32], const uint8_t nonce[16]
     size_t processed = 0;
 
     while (processed < len) {
-        state[12] = (uint32_t)(block_counter);
+        uint64_t cur_counter = base_counter + block_counter;
+        state[12] = (uint32_t)(cur_counter & 0xFFFFFFFF);
+        state[13] = (uint32_t)((cur_counter >> 32) & 0xFFFFFFFF);
         chacha20_block(state, stream);
         block_counter++;
 
@@ -535,7 +538,8 @@ static void *VOID_openArchive(PHYSFS_Io *io, const char *name, int forWrite, int
         return NULL;
     }
 
-    while (uncompress(decompTable, &destLen, encTable, (uLong)tableLen) == Z_BUF_ERROR) {
+    int zret = uncompress(decompTable, &destLen, encTable, (uLong)tableLen);
+    while (zret == Z_BUF_ERROR) {
         destLen *= 2;
         uint8_t *newBuf = (uint8_t *)realloc(decompTable, destLen);
         if (!newBuf) {
@@ -544,8 +548,14 @@ static void *VOID_openArchive(PHYSFS_Io *io, const char *name, int forWrite, int
             return NULL;
         }
         decompTable = newBuf;
+        zret = uncompress(decompTable, &destLen, encTable, (uLong)tableLen);
     }
     free(encTable);
+
+    if (zret != Z_OK) {
+        free(decompTable);
+        return NULL;
+    }
 
     // Parse Directory Table
     VoidArchive *archive = new VoidArchive();
@@ -594,6 +604,7 @@ static PHYSFS_EnumerateCallbackResult VOID_enumerate(void *opaque, const char *d
     if (!archive) return PHYSFS_ENUM_ERROR;
 
     std::string d(dirname);
+    for (char &c : d) if (c == '\\') c = '/';
     // Strip leading and trailing slashes
     while (!d.empty() && d.front() == '/') d.erase(d.begin());
     while (!d.empty() && d.back() == '/') d.pop_back();
@@ -616,6 +627,7 @@ static PHYSFS_Io *VOID_openRead(void *opaque, const char *fnm) {
     if (!archive) return NULL;
 
     std::string path(fnm);
+    for (char &c : path) if (c == '\\') c = '/';
     while (!path.empty() && path.front() == '/') path.erase(path.begin());
 
     auto it = archive->entryMap.find(path);
@@ -697,6 +709,7 @@ static int VOID_stat(void *opaque, const char *fn, PHYSFS_Stat *stat) {
     if (!archive) return 0;
 
     std::string path(fn);
+    for (char &c : path) if (c == '\\') c = '/';
     while (!path.empty() && path.front() == '/') path.erase(path.begin());
 
     bool isFile = (archive->entryMap.find(path) != archive->entryMap.end());
