@@ -425,21 +425,21 @@ static inline uint64_t readU64LE(const uint8_t *p) {
     return (uint64_t)readU32LE(p) | ((uint64_t)readU32LE(p + 4) << 32);
 }
 
-// Populate directory hierarchies for every ancestor of `path`.
-// For example, "Audio/BGM/test.ogg" adds:
-//   dirMap[""]       <- "Audio"
-//   dirMap["Audio"]  <- "BGM"
-//   dirMap["Audio/BGM"] <- "test.ogg"
-static void indexDirectories(VoidArchive *archive, const std::string &path) {
-    // Walk each path component and ensure each parent directory
-    // knows about its child (be it a sub-directory or a file).
-    size_t start = 0;
-    while (start <= path.size()) {
-        size_t slash = path.find('/', start);
-        // Component is path[start..slash-1] (or end if no slash)
-        std::string parentDir = (start == 0) ? "" : path.substr(0, start - 1);
-        std::string childName;
-
+// Populate directory hierarchies for every ancestor of `path`.                                                                                                            
+// For example, "Audio/BGM/test.ogg" adds:                                                                                                                                 
+//   dirMap[""]       <- "Audio"                                                                                                                                           
+//   dirMap["Audio"]  <- "BGM"                                                                                                                                             
+//   dirMap["Audio/BGM"] <- "test.ogg"                                                                                                                                     
+static void indexDirectories(VoidArchive *archive, const std::string &path) {                                                                                              
+    // Walk each path component and ensure each parent directory                                                                                                           
+    // knows about its child (be it a sub-directory or a file).                                                                                                            
+    size_t start = 0;                                                                                                                                                      
+    while (start <= path.size()) {                                                                                                                                         
+        size_t slash = path.find('/', start);                                                                                                                              
+        // Component is path[start..slash-1] (or end if no slash)                                                                                                          
+        std::string parentDir = (start == 0) ? "" : path.substr(0, start - 1);                                                                                             
+        std::string childName;                                                                                                                                             
+                                                                                                                                                                           
         if (slash == std::string::npos) {
             // Final component — the filename itself
             childName = path.substr(start);
